@@ -1,0 +1,131 @@
+QMainWindow {
+    background-color: #111318;
+}
+QWidget {
+    color: #e2e2e9;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+QScrollBar:vertical {
+    border: none;
+    background: #111318;
+    width: 8px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #33353a;
+    min-height: 20px;
+    border-radius: 4px;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+    height: 0px;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+#sidebar {
+    background-color: #111318;
+    border-right: 1px solid #282a2f;
+}
+
+/* ── Navigation buttons ─────────────────────────────────────── */
+.nav-btn {
+    background-color: transparent;
+    text-align: left;
+    padding: 10px 15px;
+    font-size: 13px;
+    color: #94a3b8;
+    border: none;
+    border-radius: 4px;
+}
+.nav-btn:hover {
+    background-color: #282a2f;
+    color: #e2e2e9;
+}
+.nav-btn[active="true"] {
+    background-color: #282a2f;
+    color: #e2e2e9;
+    font-weight: bold;
+    border-left: 3px solid #3D8EF0;
+    border-radius: 0px;
+}
+
+/* ── Top header ─────────────────────────────────────────────── */
+#top-header {
+    background-color: #111318;
+    border-bottom: 1px solid #282a2f;
+}
+
+/* ── Action buttons ─────────────────────────────────────────── */
+.btn-primary {
+    background-color: #3D8EF0;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 12px;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 6px;
+}
+.btn-primary:hover { background-color: #5b9ff2; }
+
+.btn-danger {
+    background-color: #93000a;
+    color: #ffdad6;
+    font-weight: bold;
+    font-size: 12px;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 6px;
+}
+.btn-danger:hover { background-color: #b5000c; }
+
+.btn-secondary {
+    background-color: #414752;
+    color: #e2e2e9;
+    font-weight: bold;
+    font-size: 12px;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 6px;
+}
+.btn-secondary:hover { background-color: #555e6d; }
+
+/* ── Right panel ────────────────────────────────────────────── */
+#right-panel {
+    background-color: #1a1b21;
+    border-left: 1px solid #282a2f;
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.card-dark {
+    background-color: #0c0e13;
+    border: 1px solid #1a1b21;
+    border-radius: 8px;
+}
+.card-light {
+    background-color: #282a2f;
+    border: 1px solid #33353a;
+    border-radius: 8px;
+}
+
+/* ── Log items ──────────────────────────────────────────────── */
+.log-item {
+    background-color: transparent;
+    border-radius: 4px;
+}
+.log-item:hover { background-color: #33353a; }
+
+/* ── Video area ─────────────────────────────────────────────── */
+#video-area {
+    background-color: #000000;
+    border: 1px solid #282a2f;
+    border-radius: 12px;
+}
+.glass-panel {
+    background-color: rgba(12, 14, 19, 0.7);
+    border: 1px solid rgba(65, 71, 82, 0.3);
+    border-radius: 8px;
+}
