@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QTableWidget, QTableWidgetItem, QHeaderView,
     QCheckBox, QAbstractItemView, QMenu, QFileDialog,
-    QMessageBox, QCalendarWidget, QDialog, QSpinBox
+    QMessageBox, QCalendarWidget, QDialog, QSpinBox, QComboBox
 )
 from PyQt6.QtCore import Qt, QDate, QTimer, QEvent, QSize
 from PyQt6.QtGui import QColor, QCursor, QIcon
@@ -173,19 +173,12 @@ class HistoryPage(QWidget):
         title_lbl = QLabel("History Log")
         title_lbl.setStyleSheet("font-size: 22px; font-weight: 900; color: #e2e2e9;")
 
-        self.date_btn = QPushButton("📅  All Date  ▼")
-        self.date_btn.setObjectName("date-btn")
-        self.date_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.date_btn.clicked.connect(self._open_date_filter)
-
         self.export_top_btn = QPushButton("⬇  Export Tables")
         self.export_top_btn.setObjectName("btn-primary")
         self.export_top_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.export_top_btn.clicked.connect(self._export_all)
 
         header_layout.addWidget(title_lbl)
-        header_layout.addSpacing(25)
-        header_layout.addWidget(self.date_btn)
         header_layout.addStretch()
         header_layout.addWidget(self.export_top_btn)
         main_layout.addWidget(header)
@@ -230,17 +223,24 @@ class HistoryPage(QWidget):
         tb_h_layout = QHBoxLayout(tb_header)
         tb_h_layout.setContentsMargins(30, 0, 30, 0)
 
-        tab_container = QWidget()
-        tab_layout = QVBoxLayout(tab_container)
-        tab_layout.setContentsMargins(0, 20, 0, 0)
-        tab_lbl = QLabel("ALL EVENTS")
-        tab_lbl.setStyleSheet(
-            "font-size: 11px; font-weight:bold; color:#e2e2e9;"
-            " border-bottom: 2px solid #3D8EF0; padding-bottom: 18px;"
-        )
-        tab_layout.addWidget(tab_lbl)
+        # Date Filter Dropdown
+        self.date_combo = QComboBox()
+        self.date_combo.addItems(["All Dates", "Last 7 Days", "Last 30 Days", "Custom Range"])
+        self.date_combo.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.date_combo.setMinimumWidth(120)
+        self.date_combo.activated.connect(self._on_date_combo_activated)
 
-        tb_h_layout.addWidget(tab_container)
+        # Class Filter Dropdown
+        self.class_combo = QComboBox()
+        self.class_combo.addItem("All Classes")
+        self.class_combo.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.class_combo.setMinimumWidth(130)
+        self.class_combo.activated.connect(self._on_class_combo_activated)
+        
+        tb_h_layout.addWidget(self.date_combo)
+        tb_h_layout.addSpacing(15)
+        tb_h_layout.addWidget(self.class_combo)
+        
         tb_h_layout.addStretch()
 
         self.btn_del_sel = QPushButton("  Delete Selected")
@@ -250,25 +250,13 @@ class HistoryPage(QWidget):
         self.btn_del_sel.clicked.connect(self._delete_selected)
 
         self.btn_exp_sel = QPushButton("⬇  Export Selected")
-        self.btn_exp_sel.setObjectName("btn-outline")
+        self.btn_exp_sel.setObjectName("btn-primary")
         self.btn_exp_sel.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_exp_sel.clicked.connect(self._export_selected)
-
-        self.btn_filter_class = QPushButton("⚲  Filter by Class")
-        self.btn_filter_class.setObjectName("btn-text")
-        self.btn_filter_class.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_filter_class.clicked.connect(self._open_class_filter)
 
         tb_h_layout.addWidget(self.btn_del_sel)
         tb_h_layout.addSpacing(10)
         tb_h_layout.addWidget(self.btn_exp_sel)
-        tb_h_layout.addSpacing(20)
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet("color: #33353a;")
-        tb_h_layout.addWidget(sep)
-        tb_h_layout.addSpacing(20)
-        tb_h_layout.addWidget(self.btn_filter_class)
 
         # Table
         self.table = QTableWidget()
@@ -309,6 +297,29 @@ class HistoryPage(QWidget):
         content_layout.addLayout(stats_wrap)
         content_layout.addWidget(table_container)
         main_layout.addWidget(content_wrapper, stretch=1)
+        
+        self._populate_class_combo()
+
+    def _populate_class_combo(self):
+        if not os.path.exists(DB_PATH):
+            return
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT class_name FROM history_logs ORDER BY class_name")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        current_text = self.class_combo.currentText()
+        self.class_combo.blockSignals(True)
+        self.class_combo.clear()
+        self.class_combo.addItem("All Classes")
+        for row in rows:
+            self.class_combo.addItem(row[0])
+            
+        index = self.class_combo.findText(current_text)
+        if index >= 0:
+            self.class_combo.setCurrentIndex(index)
+        self.class_combo.blockSignals(False)
 
     # ── Database — Read ──────────────────────────────────────────────
     def _fetch_from_db(self) -> list[dict]:
@@ -321,30 +332,29 @@ class HistoryPage(QWidget):
             FROM history_logs WHERE 1=1
         """
         params = []
-        if self._filter_start and self._filter_end:
-            query += " AND DATE(timestamp) BETWEEN ? AND ?"
-            params += [
-                self._filter_start.toString("yyyy-MM-dd"),
-                self._filter_end.toString("yyyy-MM-dd"),
-            ]
+        
+        if hasattr(self, 'date_combo'):
+            idx = self.date_combo.currentIndex()
+            if idx == 1: # Last 7 Days
+                query += " AND DATE(timestamp) >= DATE('now', '-6 days')"
+            elif idx == 2: # Last 30 Days
+                query += " AND DATE(timestamp) >= DATE('now', '-29 days')"
+            elif idx == 3 and self._filter_start and self._filter_end: # Custom Range
+                query += " AND DATE(timestamp) BETWEEN ? AND ?"
+                params += [
+                    self._filter_start.toString("yyyy-MM-dd"),
+                    self._filter_end.toString("yyyy-MM-dd"),
+                ]
+
         if self._filter_class:
             query += " AND class_name = ?"
             params.append(self._filter_class)
+            
         query += " GROUP BY DATE(timestamp), class_name ORDER BY date DESC, class_name"
         cursor.execute(query, params)
         rows = cursor.fetchall()
         conn.close()
         return [{"date": r[0], "class_name": r[1], "total_count": r[2]} for r in rows]
-
-    def _fetch_classes(self) -> list[str]:
-        if not os.path.exists(DB_PATH):
-            return []
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT class_name FROM history_logs ORDER BY class_name")
-        rows = [r[0] for r in cursor.fetchall()]
-        conn.close()
-        return rows
 
     # ── Database — Delete ────────────────────────────────────────────
     def _delete_rows_from_db(self, rows: list[dict]):
@@ -362,10 +372,12 @@ class HistoryPage(QWidget):
 
     # ── Load / Refresh ───────────────────────────────────────────────
     def load_data(self):
+        self._populate_class_combo()
         self._data = self._fetch_from_db()
         self._rebuild_table()
 
     def _auto_refresh(self):
+        self._populate_class_combo()
         new_data = self._fetch_from_db()
         if new_data == self._data:
             return
@@ -594,52 +606,56 @@ class HistoryPage(QWidget):
         self._export_rows_to_excel(rows)
 
     # ── Filters ──────────────────────────────────────────────────────
-    def _open_date_filter(self):
-        dlg = DateRangeDialog(self, self._filter_start, self._filter_end)
-        if dlg.exec():
-            s, e, was_set = dlg.get_dates()
-            if not was_set:
-                self._filter_start = None
-                self._filter_end   = None
-                self.date_btn.setText("📅  All Date  ▼")
-            elif s <= e:
-                self._filter_start = s
-                self._filter_end   = e
-                self.date_btn.setText(f"📅  {s.toString('dd MMM yyyy')} – {e.toString('dd MMM yyyy')}  ▼")
+    def _on_date_combo_activated(self, index):
+        if index == 3: # Custom Range
+            dlg = DateRangeDialog(self, self._filter_start, self._filter_end)
+            if dlg.exec():
+                s, e, was_set = dlg.get_dates()
+                if was_set and s <= e:
+                    self._filter_start = s
+                    self._filter_end   = e
+                    custom_text = f"Custom Range"
+                    
+                    self.date_combo.blockSignals(True)
+                    if self.date_combo.count() == 4:
+                        self.date_combo.setItemText(3, custom_text)
+                    self.date_combo.setCurrentIndex(3)
+                    self.date_combo.blockSignals(False)
+                    self.load_data()
+                elif not was_set:
+                    self._filter_start = None
+                    self._filter_end = None
+                    self.date_combo.setItemText(3, "Custom Range")
+                    self.date_combo.setCurrentIndex(0) # Revert to All Dates
+                    self.load_data()
+                else:
+                    QMessageBox.warning(self, "Tanggal Salah", "Tanggal mulai harus sebelum tanggal akhir.")
+                    self.date_combo.setCurrentIndex(0)
+                    self.date_combo.setItemText(3, "Custom Range")
+                    self.load_data()
             else:
-                QMessageBox.warning(self, "Tanggal Salah", "Tanggal mulai harus sebelum tanggal akhir.")
-                return
+                self._sync_date_dropdown()
+        else:
+            self._filter_start = None
+            self._filter_end = None
+            self.date_combo.setItemText(3, "Custom Range")
             self.load_data()
 
-    def _open_class_filter(self):
-        classes = self._fetch_classes()
-        menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #1e1f25; color: #e2e2e9;
-                border: 1px solid #414752; border-radius: 6px;
-                padding: 6px; font-size: 13px;
-            }
-            QMenu::item { padding: 8px 20px; border-radius: 4px; }
-            QMenu::item:selected { background-color: #3D8EF0; color: white; }
-            QMenu::separator { height: 1px; background: #33353a; margin: 4px 0; }
-        """)
-        action_all = menu.addAction("✓ All Class" if not self._filter_class else "  All Class")
-        action_all.setData(None)
-        menu.addSeparator()
-        for cls in classes:
-            label = (f"✓ {cls}" if cls == self._filter_class else f"  {cls}")
-            action = menu.addAction(label)
-            action.setData(cls)
+    def _sync_date_dropdown(self):
+        if self._filter_start and self._filter_end:
+            self.date_combo.setCurrentIndex(3)
+        else:
+            # Need to figure out if it was All Dates, Last 7 or 30. 
+            # Easiest way is just to let it be, or default to All Dates.
+            pass
 
-        pos    = self.btn_filter_class.mapToGlobal(self.btn_filter_class.rect().bottomLeft())
-        chosen = menu.exec(pos)
-        if chosen is not None:
-            self._filter_class = chosen.data()
-            self.btn_filter_class.setText(
-                f"⚲  {self._filter_class}  ✕" if self._filter_class else "⚲  Filter by Class"
-            )
-            self.load_data()
+    def _on_class_combo_activated(self, index):
+        text = self.class_combo.itemText(index)
+        if text == "All Classes":
+            self._filter_class = None
+        else:
+            self._filter_class = text
+        self.load_data()
 
     # ── Checkbox helpers ─────────────────────────────────────────────
     def _toggle_all_checkboxes(self, state):
@@ -660,31 +676,53 @@ class HistoryPage(QWidget):
                 padding: 8px 18px; font-weight: bold; font-size: 13px; border: none;
             }
             #btn-primary:hover { background-color: #5b9ff2; }
-            #date-btn {
-                background-color: #1a1b21; color: #8b919e; border: 1px solid #33353a;
-                border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: bold;
+            
+            QComboBox {
+                background-color: #1a1b21;
+                color: #8b919e;
+                border: 1px solid #33353a;
+                border-radius: 8px;
+                padding: 6px 30px 6px 14px;
+                font-size: 12px;
+                font-weight: bold;
             }
-            #date-btn:hover { background-color: #282a2f; color: #e2e2e9; }
+            QComboBox:hover {
+                background-color: #282a2f;
+                color: #e2e2e9;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox::down-arrow {
+                image: url('data:image/svg+xml;utf8,<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%238b919e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            }
+            QComboBox:hover::down-arrow {
+                image: url('data:image/svg+xml;utf8,<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%23e2e2e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1e1f25;
+                color: #e2e2e9;
+                selection-background-color: #3D8EF0;
+                border: 1px solid #33353a;
+                outline: none;
+            }
+
             #stats-card { background-color: #0c0e13; border-radius: 16px; }
             #table-container {
                 background-color: #1e1f25; border-radius: 12px; border: 1px solid #282a2f;
             }
             #tb-header { background-color: transparent; border-bottom: 1px solid #33353a; }
-            #tb-header QWidget { background-color: transparent; }
             #btn-danger-outline {
-                background-color: rgba(147, 0, 10, 0.15); color: #ffb4ab;
-                border: 1px solid rgba(255, 180, 171, 0.2); border-radius: 6px;
-                padding: 6px 14px; font-size: 12px; font-weight: 600;
+                background-color: rgba(147, 0, 10, 0.2); color: white;
+                border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: bold; border: none;
             }
-            #btn-danger-outline:hover { background-color: rgba(147, 0, 10, 0.3); }
+            #btn-danger-outline:hover { background-color: rgba(200,30,30,0.8); color: white; }
             #btn-outline {
                 background-color: #282a2f; color: #e2e2e9; border: 1px solid #414752;
                 border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600;
             }
             #btn-outline:hover { background-color: #37393f; }
-            #btn-text { background-color: transparent; color: #8b919e; border: none;
-                        font-size: 12px; font-weight: bold; }
-            #btn-text:hover { color: #e2e2e9; }
             QTableWidget {
                 background-color: transparent; border: none;
                 gridline-color: transparent; color: #e2e2e9; font-size: 13px; outline: none;
@@ -701,7 +739,7 @@ class HistoryPage(QWidget):
                 padding: 5px 10px; font-size: 12px; font-weight: bold;
             }
             #btn-action-delete {
-                background-color: rgba(147,0,10,0.2); color: #ffb4ab;
+                background-color: rgba(147,0,10,0.2); color: white;
                 border-radius: 6px; font-size: 16px; border: none;
             }
             #btn-action-delete:hover { background-color: rgba(200,30,30,0.8); color: white; }

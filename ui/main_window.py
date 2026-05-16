@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 
 from ui.history_page import HistoryPage
+from ui.analytics_page import AnalyticsPage
 from widgets.log_item import LogItem
 from core.app_controller import AppController
 
@@ -45,6 +46,9 @@ class MainWindow(QMainWindow):
         self.history_page = HistoryPage()
         self.stacked_widget.addWidget(self.history_page)
 
+        self.analytics_page = AnalyticsPage()
+        self.stacked_widget.addWidget(self.analytics_page)
+
         root.addWidget(self.stacked_widget, stretch=1)
 
     def _build_sidebar(self) -> QFrame:
@@ -71,8 +75,13 @@ class MainWindow(QMainWindow):
         self.hist_btn.setProperty("class", "nav-btn")
         self.hist_btn.clicked.connect(self._switch_to_history)
 
+        self.analytics_btn = QPushButton("Analytics")
+        self.analytics_btn.setProperty("class", "nav-btn")
+        self.analytics_btn.clicked.connect(self._switch_to_analytics)
+
         layout.addWidget(self.dash_btn)
         layout.addWidget(self.hist_btn)
+        layout.addWidget(self.analytics_btn)
         layout.addStretch()
 
         self.status_indicator = QLabel("● IDLE")
@@ -254,17 +263,22 @@ class MainWindow(QMainWindow):
     # ── Navigation ───────────────────────────────────────────────────
     def _switch_to_dashboard(self):
         self.stacked_widget.setCurrentIndex(0)
-        self._set_nav(self.dash_btn, self.hist_btn)
+        self._set_nav(self.dash_btn, [self.hist_btn, self.analytics_btn])
 
     def _switch_to_history(self):
         self.stacked_widget.setCurrentIndex(1)
-        self._set_nav(self.hist_btn, self.dash_btn)
+        self._set_nav(self.hist_btn, [self.dash_btn, self.analytics_btn])
 
-    def _set_nav(self, active_btn, inactive_btn):
+    def _switch_to_analytics(self):
+        self.stacked_widget.setCurrentIndex(2)
+        self._set_nav(self.analytics_btn, [self.dash_btn, self.hist_btn])
+
+    def _set_nav(self, active_btn, inactive_btns):
         active_btn.setProperty("active", "true")
-        inactive_btn.setProperty("active", "false")
         self._refresh_btn(active_btn)
-        self._refresh_btn(inactive_btn)
+        for btn in inactive_btns:
+            btn.setProperty("active", "false")
+            self._refresh_btn(btn)
 
     def _refresh_btn(self, btn):
         btn.style().unpolish(btn)
