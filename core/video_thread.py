@@ -45,7 +45,19 @@ class VideoThread(QThread):
     def run(self):
         self._init_models()
 
-        cap = cv2.VideoCapture(self.source)
+        if self.source == 0:
+            if os.name == 'nt':
+                cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
+            else:
+                cap = cv2.VideoCapture(self.source)
+            # Mengurangi buffer agar frame dari webcam tidak mengantre (mencegah delay)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Menurunkan resolusi kamera ke 640x480 agar beban komputasi YOLO lebih ringan
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        else:
+            cap = cv2.VideoCapture(self.source)
+
         if not cap.isOpened():
             self.finished_signal.emit()
             return
@@ -90,16 +102,16 @@ class VideoThread(QThread):
     # ── Model initialisation ─────────────────────────────────────────
     def _init_models(self):
         try:
-            from ultralytics import solutions, YOLO
+            from ultralytics import solutions
             self.counter = solutions.ObjectCounter(
                 region=self.region_points,
                 show_out=False,
                 show_in=False,
                 model=self.model_path,
-                conf=0.6,
+                conf=0.5,
                 tracker="botsort.yaml",
             )
-            self.yolo_model = YOLO(self.model_path)
+            self.yolo_model = None  # Dihapus agar tidak melakukan inisialisasi ganda model
         except Exception as e:
             print(f"[VideoThread] Model init error: {e}")
 
