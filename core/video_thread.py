@@ -102,14 +102,21 @@ class VideoThread(QThread):
     # ── Model initialisation ─────────────────────────────────────────
     def _init_models(self):
         try:
+            import torch
             from ultralytics import solutions
+
+            # Otomatis gunakan GPU (CUDA) jika tersedia, fallback ke CPU
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"[VideoThread] Running on device: {device.upper()}")
+
             self.counter = solutions.ObjectCounter(
                 region=self.region_points,
                 show_out=False,
                 show_in=False,
                 model=self.model_path,
                 conf=0.5,
-                tracker="botsort.yaml",
+                tracker="bytetrack.yaml",
+                device=device,
             )
             self.yolo_model = None  # Dihapus agar tidak melakukan inisialisasi ganda model
         except Exception as e:
