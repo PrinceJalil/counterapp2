@@ -1,0 +1,29 @@
+# ── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# ── Virtual Environment ─────────────────────────────────────────────
+venv/
+.venv/
+env/
+site-packages/
+
+# ── Distribution / Build ────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.spec
+
+# ── IDE & Editor ────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ── OS Files ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

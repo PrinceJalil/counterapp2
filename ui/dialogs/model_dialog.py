@@ -31,7 +31,7 @@ class ModelUploadDialog(QDialog):
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #e2e2e9;")
         root.addWidget(title)
 
-        sub = QLabel("Versi model min yolov8n dengan format .pt/.onnx")
+        sub = QLabel("Versi model min yolov8n dengan format .pt")
         sub.setStyleSheet("font-size: 11px; color: #8b919e;")
         root.addWidget(sub)
 
@@ -67,7 +67,7 @@ class ModelUploadDialog(QDialog):
 
     def _browse(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Pilih Model YOLO", "", "Model Files (*.pt *.onnx)"
+            self, "Pilih Model YOLO", "", "Model Files (*.pt)"
         )
         if file_path:
             self.model_path = file_path
@@ -82,5 +82,5 @@ class ModelUploadDialog(QDialog):
                 self,
                 "Model Belum Dipilih",
                 "Upload model YOLO terlebih dahulu.\n\n"
-                "Klik 'Browse File...' untuk memilih file model (.pt atau .onnx)."
+                "Klik 'Browse File...' untuk memilih file model.pt."
             )
